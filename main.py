@@ -1,7 +1,7 @@
 import sqlite3
 import sys
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QTableWidgetItem
+from PyQt5.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QWidget, QMessageBox
 from PyQt5 import uic  # Импортируем uic
 
 
@@ -10,7 +10,10 @@ class MyWidget(QMainWindow):
         super().__init__()
         uic.loadUi('main.ui', self)  # Загружаем дизайн
         self.con = sqlite3.connect("coffee.sqlite")
+        self.select_id = ''
         self.btn.clicked.connect(self.result)
+        self.create.clicked.connect(self.run_form)
+        self.update.clicked.connect(self.check)
 
     def result(self):
         cur = self.con.cursor()
@@ -34,6 +37,83 @@ class MyWidget(QMainWindow):
             self.statusBar().showMessage("")
         except Exception:
             self.statusBar().showMessage("По этому запросу ничего не найдено")
+
+    def check(self):
+        rs = list(set([i.row() for i in self.tableWidget.selectedItems()]))
+        ids = [self.tableWidget.item(i, 0).text() for i in rs][-1]
+        valid = QMessageBox.question(self, '',
+                                     "Действительно заменить элемент с id " + ids, QMessageBox.Yes, QMessageBox.No)
+        if valid == QMessageBox.Yes:
+            self.select_id = ids
+            self.run_form()
+
+    # def insert_new_line(self, res):
+    #     cur = self.con.cursor()
+    #     for el in res:
+    #         cur.execute("INSERT INTO films VALUES(?, ?, ?, ?, ?)", el)
+    #     self.con.commit()
+
+    def run_form(self):
+        self.add_form = MyWidget2(self, self.sender().text(), self.select_id)
+        self.add_form.show()
+
+
+class MyWidget2(QWidget):
+    def __init__(self, *args):
+        super().__init__()
+        self.action, self.id = args[-2], args[-1]
+        uic.loadUi('addEditCoffeeForm.ui', self)
+        self.radioButton_2.setChecked(True)
+        self.buttonGroup.buttonClicked.connect(self.format)
+        self.form_coffee = ''
+        self.con = sqlite3.connect("coffee.sqlite")
+        self.roast = []
+        self.add_roasting()
+        self.run.clicked.connect(self.add_edit)
+
+    def add_roasting(self):
+        cur = self.con.cursor()
+        result = cur.execute("""SELECT title FROM roast""").fetchall()
+        for el in result:
+            self.roast.append(el[0])
+        self.comboBox.addItems(sorted(self.roast))
+
+    def format(self, rb):
+        self.form_coffee = rb.text()
+
+    def add_edit(self):
+        try:
+            if self.type_coffee.toPlainText() == '':
+                raise ValueError("Не заполнено поле с названием сорта кофе")
+            elif self.taste.toPlainText() == '':
+                raise ValueError("Не заполнено поле с описанием вкуса")
+            elif not self.price.toPlainText().isdigit() or self.price.toPlainText() == '':
+                raise ValueError("Не заполнено поле с ценой или неверный формат")
+            elif not self.volume.toPlainText().isdigit() or self.volume.toPlainText() == '':
+                raise ValueError("Не заполнено поле с объемом упаковки или неверный формат")
+            else:
+                self.info.setText('')
+                type_coffee = self.type_coffee.toPlainText().strip()
+                degree_roast = self.comboBox.currentText()
+                taste = ' '.join(self.taste.toPlainText().strip().split('\n'))
+                price = int(self.price.toPlainText().strip())
+                volume = int(self.volume.toPlainText().strip())
+                data = (type_coffee, degree_roast, self.form_coffee, taste, price, volume)
+                cur = self.con.cursor()
+                res = cur.execute("""SELECT id FROM roast WHERE title = ?""", (degree_roast, )).fetchone()
+                data = (type_coffee, res[0], self.form_coffee, taste, price, volume)
+                if self.action == 'Создать':
+                    cur.execute("""INSERT INTO Coffee(title, roasting, grind, taste, price, volume) 
+                                          VALUES(?, ?, ?, ?, ?, ?)""", data)
+                else:
+                    data = (type_coffee, res[0], self.form_coffee, taste, price, volume, self.id)
+                    cur.execute("""UPDATE Coffee SET 
+                             title = ?, roasting = ?, grind = ?, taste = ?, price = ?, volume = ? WHERE id = ?""", data)
+            self.con.commit()
+            self.close()
+            self.con.close()
+        except (ValueError, TypeError) as e:
+            self.info.setText(f'{e}')
 
 
 if __name__ == '__main__':
