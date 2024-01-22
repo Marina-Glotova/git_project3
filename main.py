@@ -46,21 +46,27 @@ class MyWidget(QMainWindow, main_form.Ui_MainWindow):
                                          "Действительно заменить элемент с id " + ids, QMessageBox.Yes, QMessageBox.No)
             if valid == QMessageBox.Yes:
                 self.select_id = ids
-                self.run_form()
+                cur = self.con.cursor()
+                result = cur.execute("""SELECT title, taste, price, volume FROM Coffee
+                                                                       WHERE ID = ?""", (self.select_id,)).fetchall()
+                title, taste, price, volume = result[0]
+                self.run_form(title, taste, price, volume)
         else:
             valid = QMessageBox.question(self, '',
                                          "Необходимо выделить элемент для его изменения", QMessageBox.Yes)
 
-    def run_form(self):
-        self.add_form = MyWidget2(self, self.sender().text(), self.select_id)
+    def run_form(self, *args):
+        self.add_form = MyWidget2(self, self.sender().text(), self.select_id, args)
         self.add_form.show()
 
 
 class MyWidget2(QWidget, addEditCoffeeForm.Ui_Form):
     def __init__(self, *args):
         super().__init__()
-        self.action, self.id = args[-2], args[-1]
+        self.action, self.id = args[-3], args[-2]
+        self.val = args[-1]
         self.setupUi(self)
+        self.fill(self.val)
         self.radioButton_2.setChecked(True)
         self.buttonGroup.buttonClicked.connect(self.format)
         self.form_coffee = ''
@@ -68,6 +74,12 @@ class MyWidget2(QWidget, addEditCoffeeForm.Ui_Form):
         self.roast = []
         self.add_roasting()
         self.run.clicked.connect(self.add_edit)
+
+    def fill(self, args):
+        self.type_coffee.insertPlainText(args[0])
+        self.taste.insertPlainText(args[1])
+        self.price.insertPlainText(str(args[2]))
+        self.volume.insertPlainText(str(args[3]))
 
     def add_roasting(self):
         cur = self.con.cursor()
