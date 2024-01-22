@@ -2,14 +2,14 @@ import sqlite3
 import sys
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QWidget, QMessageBox
-from PyQt5 import uic  # Импортируем uic
+import main_form, addEditCoffeeForm
 
 
-class MyWidget(QMainWindow):
+class MyWidget(QMainWindow, main_form.Ui_MainWindow):
     def __init__(self):
         super().__init__()
-        uic.loadUi('main.ui', self)  # Загружаем дизайн
-        self.con = sqlite3.connect("coffee.sqlite")
+        self.setupUi(self)
+        self.con = sqlite3.connect("data/coffee.sqlite")
         self.select_id = ''
         self.btn.clicked.connect(self.result)
         self.create.clicked.connect(self.run_form)
@@ -39,34 +39,32 @@ class MyWidget(QMainWindow):
             self.statusBar().showMessage("По этому запросу ничего не найдено")
 
     def check(self):
-        rs = list(set([i.row() for i in self.tableWidget.selectedItems()]))
-        ids = [self.tableWidget.item(i, 0).text() for i in rs][-1]
-        valid = QMessageBox.question(self, '',
-                                     "Действительно заменить элемент с id " + ids, QMessageBox.Yes, QMessageBox.No)
-        if valid == QMessageBox.Yes:
-            self.select_id = ids
-            self.run_form()
-
-    # def insert_new_line(self, res):
-    #     cur = self.con.cursor()
-    #     for el in res:
-    #         cur.execute("INSERT INTO films VALUES(?, ?, ?, ?, ?)", el)
-    #     self.con.commit()
+        if self.tableWidget.selectedIndexes():
+            rs = list(set([i.row() for i in self.tableWidget.selectedItems()]))
+            ids = [self.tableWidget.item(i, 0).text() for i in rs][-1]
+            valid = QMessageBox.question(self, '',
+                                         "Действительно заменить элемент с id " + ids, QMessageBox.Yes, QMessageBox.No)
+            if valid == QMessageBox.Yes:
+                self.select_id = ids
+                self.run_form()
+        else:
+            valid = QMessageBox.question(self, '',
+                                         "Необходимо выделить элемент для его изменения", QMessageBox.Yes)
 
     def run_form(self):
         self.add_form = MyWidget2(self, self.sender().text(), self.select_id)
         self.add_form.show()
 
 
-class MyWidget2(QWidget):
+class MyWidget2(QWidget, addEditCoffeeForm.Ui_Form):
     def __init__(self, *args):
         super().__init__()
         self.action, self.id = args[-2], args[-1]
-        uic.loadUi('addEditCoffeeForm.ui', self)
+        self.setupUi(self)
         self.radioButton_2.setChecked(True)
         self.buttonGroup.buttonClicked.connect(self.format)
         self.form_coffee = ''
-        self.con = sqlite3.connect("coffee.sqlite")
+        self.con = sqlite3.connect("data/coffee.sqlite")
         self.roast = []
         self.add_roasting()
         self.run.clicked.connect(self.add_edit)
