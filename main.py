@@ -76,10 +76,11 @@ class MyWidget2(QWidget, addEditCoffeeForm.Ui_Form):
         self.run.clicked.connect(self.add_edit)
 
     def fill(self, args):
-        self.type_coffee.insertPlainText(args[0])
-        self.taste.insertPlainText(args[1])
-        self.price.insertPlainText(str(args[2]))
-        self.volume.insertPlainText(str(args[3]))
+        if len(args) > 1:
+            self.type_coffee.insertPlainText(args[0])
+            self.taste.insertPlainText(args[1])
+            self.price.insertPlainText(str(args[2]))
+            self.volume.insertPlainText(str(args[3]))
 
     def add_roasting(self):
         cur = self.con.cursor()
